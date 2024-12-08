@@ -1,5 +1,5 @@
 const express = require('express');
-const connectDatabase = require('./config/database');
+const connectDatabase = require('./config/database'); // Ensure the path is correct
 const apiRoutes = require('./routes/api');
 
 const app = express();
