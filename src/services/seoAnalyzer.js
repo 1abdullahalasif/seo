@@ -19,21 +19,29 @@ class SEOAnalyzer {
         }
 
         const page = await this.browser.newPage();
-        await page.goto(url, { 
-            waitUntil: 'networkidle0',
-            timeout: 30000 
-        });
+        
+        try {
+            await page.goto(url, { 
+                waitUntil: 'networkidle0',
+                timeout: 30000 
+            });
 
-        const results = {
-            meta: await this.analyzeMeta(page),
-            headings: await this.analyzeHeadings(page),
-            images: await this.analyzeImages(page),
-            performance: await this.analyzePerformance(page),
-            seo: await this.analyzeSEOElements(page)
-        };
+            const results = {
+                meta: await this.analyzeMeta(page),
+                headings: await this.analyzeHeadings(page),
+                images: await this.analyzeImages(page),
+                links: await this.analyzeLinks(page),
+                performance: await this.analyzePerformance(page),
+                seo: await this.analyzeSEOElements(page)
+            };
 
-        await page.close();
-        return results;
+            return results;
+        } catch (error) {
+            console.error('Error analyzing page:', error);
+            throw error;
+        } finally {
+            await page.close();
+        }
     }
 
     async analyzeMeta(page) {
@@ -45,9 +53,7 @@ class SEOAnalyzer {
             meta.title = {
                 content: title ? title.innerText : null,
                 length: title ? title.innerText.length : 0,
-                status: title ? 
-                    (title.innerText.length < 60 ? 'good' : 'too_long') 
-                    : 'missing'
+                status: title ? (title.innerText.length < 60 ? 'good' : 'too_long') : 'missing'
             };
 
             // Meta description analysis
@@ -60,12 +66,6 @@ class SEOAnalyzer {
                     : 'missing'
             };
 
-            // Keywords analysis
-            const keywords = document.querySelector('meta[name="keywords"]');
-            meta.keywords = keywords ? 
-                keywords.getAttribute('content').split(',').map(k => k.trim()) 
-                : [];
-
             return meta;
         });
     }
@@ -73,7 +73,7 @@ class SEOAnalyzer {
     async analyzeHeadings(page) {
         return await page.evaluate(() => {
             const headings = {};
-            ['h1', 'h2', 'h3'].forEach(tag => {
+            ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(tag => {
                 const elements = document.getElementsByTagName(tag);
                 headings[tag] = Array.from(elements).map(el => ({
                     content: el.innerText,
@@ -99,26 +99,59 @@ class SEOAnalyzer {
         });
     }
 
+    async analyzeLinks(page) {
+        return await page.evaluate(() => {
+            const links = Array.from(document.getElementsByTagName('a'));
+            return {
+                total: links.length,
+                internal: links.filter(link => {
+                    try {
+                        const url = new URL(link.href);
+                        return url.hostname === window.location.hostname;
+                    } catch (e) {
+                        return false;
+                    }
+                }).length,
+                external: links.filter(link => {
+                    try {
+                        const url = new URL(link.href);
+                        return url.hostname !== window.location.hostname;
+                    } catch (e) {
+                        return false;
+                    }
+                }).length,
+                links: links.map(link => ({
+                    href: link.href,
+                    text: link.textContent,
+                    isInternal: true
+                }))
+            };
+        });
+    }
+
     async analyzePerformance(page) {
-        const metrics = await page.metrics();
-        const performance = {
-            pageSize: await this.calculatePageSize(page),
-            loadTime: metrics.TaskDuration,
-            mobileScore: Math.floor(Math.random() * 30) + 70, // Placeholder for actual mobile testing
-            desktopScore: Math.floor(Math.random() * 20) + 80 // Placeholder for actual desktop testing
+        const client = await page.target().createCDPSession();
+        await client.send('Network.enable');
+        
+        const performanceMetrics = await page.metrics();
+        
+        return {
+            loadTime: performanceMetrics.TaskDuration,
+            domContentLoaded: performanceMetrics.DomContentLoaded,
+            firstPaint: performanceMetrics.FirstPaint
         };
-        return performance;
     }
 
     async analyzeSEOElements(page) {
-        const seoIssues = [];
-        const results = await page.evaluate(() => {
-            const issues = [];
+        const seoResults = await page.evaluate(() => {
+            const results = {
+                issues: []
+            };
 
             // Check title
             const title = document.querySelector('title');
             if (!title) {
-                issues.push({
+                results.issues.push({
                     type: 'meta_title',
                     severity: 'critical',
                     description: 'Missing meta title tag'
@@ -128,7 +161,7 @@ class SEOAnalyzer {
             // Check meta description
             const description = document.querySelector('meta[name="description"]');
             if (!description) {
-                issues.push({
+                results.issues.push({
                     type: 'meta_description',
                     severity: 'critical',
                     description: 'Missing meta description tag'
@@ -138,26 +171,19 @@ class SEOAnalyzer {
             // Check h1
             const h1s = document.getElementsByTagName('h1');
             if (h1s.length === 0) {
-                issues.push({
+                results.issues.push({
                     type: 'headings',
                     severity: 'critical',
                     description: 'Missing H1 heading'
                 });
-            } else if (h1s.length > 1) {
-                issues.push({
-                    type: 'headings',
-                    severity: 'warning',
-                    description: 'Multiple H1 headings found'
-                });
             }
 
-            return issues;
+            return results;
         });
 
-        return {
-            score: this.calculateSEOScore(results),
-            issues: results
-        };
+        // Calculate SEO score
+        seoResults.score = this.calculateSEOScore(seoResults.issues);
+        return seoResults;
     }
 
     calculateSEOScore(issues) {
@@ -167,13 +193,6 @@ class SEOAnalyzer {
             if (issue.severity === 'warning') score -= 5;
         });
         return Math.max(0, score);
-    }
-
-    async calculatePageSize(page) {
-        return await page.evaluate(() => {
-            const resources = performance.getEntriesByType('resource');
-            return resources.reduce((total, resource) => total + resource.transferSize, 0);
-        });
     }
 
     async cleanup() {

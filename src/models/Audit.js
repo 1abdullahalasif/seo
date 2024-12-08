@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+// Define sub-schemas for recommendations
+const recommendationSchema = new mongoose.Schema({
+    type: String,
+    severity: {
+        type: String,
+        enum: ['critical', 'warning', 'info']
+    },
+    description: String,
+    impact: String,
+    howToFix: String
+});
+
 const auditSchema = new mongoose.Schema({
     websiteUrl: {
         type: String,
@@ -37,23 +49,9 @@ const auditSchema = new mongoose.Schema({
                 content: String,
                 length: Number,
                 status: String
-            },
-            keywords: [String]
+            }
         },
-        headings: {
-            h1: [{
-                content: String,
-                count: Number
-            }],
-            h2: [{
-                content: String,
-                count: Number
-            }],
-            h3: [{
-                content: String,
-                count: Number
-            }]
-        },
+        headings: mongoose.Schema.Types.Mixed,
         images: [{
             src: String,
             alt: String,
@@ -64,26 +62,32 @@ const auditSchema = new mongoose.Schema({
             }
         }],
         performance: {
-            pageSize: Number,
             loadTime: Number,
-            mobileScore: Number,
-            desktopScore: Number
+            domContentLoaded: Number,
+            firstPaint: Number
         },
         seo: {
             score: Number,
             issues: [{
                 type: String,
                 severity: String,
-                description: String,
-                location: String
+                description: String
             }]
         }
+    },
+    summary: {
+        score: Number,
+        criticalIssues: Number,
+        warnings: Number,
+        passed: Number,
+        recommendations: [recommendationSchema]  // Using the defined sub-schema
     },
     createdAt: {
         type: Date,
         default: Date.now
     },
-    completedAt: Date
+    completedAt: Date,
+    error: String
 });
 
 module.exports = mongoose.model('Audit', auditSchema);

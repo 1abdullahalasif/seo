@@ -1,43 +1,41 @@
+// src/routes/api.js
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const auditController = require('../controllers/auditController');
+const { validateAuditRequest, validateURLParams } = require('../utils/validation');
 
-// Middleware to validate request body
-const validateAuditRequest = (req, res, next) => {
-    const { websiteUrl, email, name, companyDomain } = req.body;
+// Rate limiting
+const auditLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10 // limit each IP to 10 requests per hour
+});
 
-    if (!websiteUrl || !email || !name || !companyDomain) {
-        return res.status(400).json({
-            success: false,
-            message: 'Missing required fields'
-        });
-    }
+// Health check route
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
 
-    // Basic URL validation
-    try {
-        new URL(websiteUrl);
-    } catch (error) {
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid website URL'
-        });
-    }
+// Audit routes
+router.post('/audit', 
+    auditLimiter,
+    validateAuditRequest,
+    auditController.startAudit
+);
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid email format'
-        });
-    }
+router.get('/audit/:id',
+    validateURLParams,
+    auditController.getAuditStatus
+);
 
-    next();
-};
-
-// Routes
-router.post('/audit', validateAuditRequest, auditController.startAudit);
-router.get('/audit/:id', auditController.getAuditStatus);
-router.get('/audit/:id/results', auditController.getAuditResults);
+// Error handling middleware
+router.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
 
 module.exports = router;
