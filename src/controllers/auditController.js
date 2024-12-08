@@ -1,3 +1,4 @@
+// src/controllers/auditController.js
 const Audit = require('../models/Audit');
 const seoAnalyzer = require('../services/seoAnalyzer');
 
@@ -111,8 +112,6 @@ async function processAudit(auditId) {
             status: 'failed',
             error: error.message
         });
-    } finally {
-        await seoAnalyzer.cleanup();
     }
 }
 
@@ -140,17 +139,6 @@ function generateRecommendations(results) {
         });
     }
 
-    // Heading recommendations
-    if (!results.headings?.h1 || results.headings.h1.length === 0) {
-        recommendations.push({
-            type: 'headings',
-            severity: 'critical',
-            description: 'Missing H1 heading',
-            impact: 'Important for page structure and SEO',
-            howToFix: 'Add a single, descriptive H1 heading to your page'
-        });
-    }
-
     // Image recommendations
     const imagesWithoutAlt = results.images?.filter(img => !img.hasAlt) || [];
     if (imagesWithoutAlt.length > 0) {
@@ -160,17 +148,6 @@ function generateRecommendations(results) {
             description: `${imagesWithoutAlt.length} images missing alt text`,
             impact: 'Affects accessibility and image SEO',
             howToFix: 'Add descriptive alt text to all images'
-        });
-    }
-
-    // Performance recommendations
-    if (results.performance?.loadTime > 3000) {
-        recommendations.push({
-            type: 'performance',
-            severity: 'warning',
-            description: 'Page load time is too high',
-            impact: 'Affects user experience and SEO',
-            howToFix: 'Optimize images, minimize JavaScript, and leverage caching'
         });
     }
 
@@ -186,16 +163,9 @@ function calculateOverallScore(results) {
     if (results.meta?.title?.length > 60) score -= 5;
     if (results.meta?.description?.length > 160) score -= 5;
 
-    // Headings scoring
-    if (!results.headings?.h1 || results.headings.h1.length === 0) score -= 10;
-    if (results.headings?.h1?.length > 1) score -= 5;
-
     // Images scoring
     const imagesWithoutAlt = results.images?.filter(img => !img.hasAlt) || [];
     score -= Math.min(20, imagesWithoutAlt.length * 2);
-
-    // Performance scoring
-    if (results.performance?.loadTime > 3000) score -= 10;
 
     // Return score bounded between 0 and 100
     return Math.max(0, Math.min(100, score));
