@@ -1,41 +1,26 @@
-// src/routes/api.js
 const express = require('express');
-const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const auditController = require('../controllers/auditController');
-const { validateAuditRequest, validateURLParams } = require('../utils/validation');
 
-// Rate limiting
-const auditLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10 // limit each IP to 10 requests per hour
-});
+const router = express.Router();
 
-// Health check route
-router.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
-});
-
-// Audit routes
-router.post('/audit', 
-    auditLimiter,
-    validateAuditRequest,
-    auditController.startAudit
-);
-
-router.get('/audit/:id',
-    validateURLParams,
-    auditController.getAuditStatus
-);
-
-// Error handling middleware
-router.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+// **Rate limiter middleware**
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  keyGenerator: (req) => req.ip, // Use req.ip to avoid trust proxy issues
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      message: 'Too many requests, please try again later.',
     });
+  },
 });
+
+// Apply rate limiter to all routes
+router.use(limiter);
+
+// Define routes
+router.post('/audit', auditController.createAudit);
 
 module.exports = router;
