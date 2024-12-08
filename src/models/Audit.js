@@ -2,49 +2,26 @@ const mongoose = require('mongoose');
 
 // Define sub-schemas for recommendations
 const recommendationSchema = new mongoose.Schema({
-    type: {
-        type: String,
-        required: true,
-        trim: true
-    },
+    type: String,
     severity: {
         type: String,
-        enum: ['critical', 'warning', 'info'],
-        required: true
+        enum: ['critical', 'warning', 'info']
     },
-    description: {
-        type: String,
-        required: true,
-        trim: true
-    },
-    impact: {
-        type: String,
-        trim: true
-    },
-    howToFix: {
-        type: String,
-        trim: true
-    }
-}, { _id: false });
+    description: String,
+    impact: String,
+    howToFix: String
+});
 
-// Main audit schema
 const auditSchema = new mongoose.Schema({
     websiteUrl: {
         type: String,
         required: true,
-        trim: true,
-        validate: {
-            validator: function(v) {
-                return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
-            },
-            message: props => `${props.value} is not a valid URL!`
-        }
+        trim: true
     },
     email: {
         type: String,
         required: true,
-        trim: true,
-        match: [/^\S+@\S+\.\S+$/, 'Invalid email address']
+        trim: true
     },
     name: {
         type: String,
@@ -64,20 +41,20 @@ const auditSchema = new mongoose.Schema({
     results: {
         meta: {
             title: {
-                content: { type: String, trim: true },
+                content: String,
                 length: Number,
-                status: { type: String, enum: ['pass', 'fail', 'warning'] }
+                status: String
             },
             description: {
-                content: { type: String, trim: true },
+                content: String,
                 length: Number,
-                status: { type: String, enum: ['pass', 'fail', 'warning'] }
+                status: String
             }
         },
         headings: mongoose.Schema.Types.Mixed,
         images: [{
-            src: { type: String, trim: true },
-            alt: { type: String, trim: true },
+            src: String,
+            alt: String,
             hasAlt: Boolean,
             dimensions: {
                 width: Number,
@@ -90,19 +67,19 @@ const auditSchema = new mongoose.Schema({
             firstPaint: Number
         },
         seo: {
-            score: { type: Number, min: 0, max: 100 },
+            score: Number,
             issues: [{
-                type: { type: String, trim: true },
-                severity: { type: String, enum: ['critical', 'warning', 'info'] },
-                description: { type: String, trim: true }
+                type: String,
+                severity: String,
+                description: String
             }]
         }
     },
     summary: {
-        score: { type: Number, min: 0, max: 100 },
-        criticalIssues: { type: Number, default: 0 },
-        warnings: { type: Number, default: 0 },
-        passed: { type: Number, default: 0 },
+        score: Number,
+        criticalIssues: Number,
+        warnings: Number,
+        passed: Number,
         recommendations: [recommendationSchema]  // Using the defined sub-schema
     },
     createdAt: {
@@ -110,26 +87,7 @@ const auditSchema = new mongoose.Schema({
         default: Date.now
     },
     completedAt: Date,
-    error: {
-        type: String,
-        trim: true
-    },
-    errorDetails: {
-        code: { type: String, trim: true },
-        message: { type: String, trim: true },
-        stack: { type: String, trim: true }
-    },
-    isDeleted: {
-        type: Boolean,
-        default: false
-    }
-}, {
-    timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
+    error: String
 });
-
-// Indexing for better performance
-auditSchema.index({ status: 1 });
-auditSchema.index({ email: 1 });
-auditSchema.index({ websiteUrl: 1 });
 
 module.exports = mongoose.model('Audit', auditSchema);
