@@ -32,12 +32,19 @@ const auditSchema = new mongoose.Schema({
     websiteUrl: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        validate: {
+            validator: function(v) {
+                return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+            },
+            message: props => `${props.value} is not a valid URL!`
+        }
     },
     email: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        match: [/^\S+@\S+\.\S+$/, 'Invalid email address']
     },
     name: {
         type: String,
@@ -106,9 +113,23 @@ const auditSchema = new mongoose.Schema({
     error: {
         type: String,
         trim: true
+    },
+    errorDetails: {
+        code: { type: String, trim: true },
+        message: { type: String, trim: true },
+        stack: { type: String, trim: true }
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
 });
+
+// Indexing for better performance
+auditSchema.index({ status: 1 });
+auditSchema.index({ email: 1 });
+auditSchema.index({ websiteUrl: 1 });
 
 module.exports = mongoose.model('Audit', auditSchema);
