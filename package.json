@@ -5,9 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "build": "npm install",
-    "postinstall": "node node_modules/puppeteer/install.js"
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -18,11 +16,8 @@
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
     "mongoose": "^8.0.3",
-    "puppeteer": "^21.6.1",
     "winston": "^3.11.0",
-    "compression": "^1.7.4",
-    "cookie-parser": "^1.4.6",
-    "morgan": "^1.10.0"
+    "jsdom": "^22.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
