@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: seo-audit-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+    buildFilter:
+      paths:
+        - package.json
+        - src/**
+    plan: free
+    initialDeployHooks:
+      - npm install puppeteer
+      - node node_modules/puppeteer/install.js
