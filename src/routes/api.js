@@ -1,11 +1,9 @@
 const express = require('express');
+const auditController = require('../controllers/auditController');
+
 const router = express.Router();
-const auditController = require('../controllers/auditController'); // Import the controller
 
-// Route to start an audit
-router.post('/audit/start', auditController.startAudit);
-
-// Route to get audit status by ID
-router.get('/audit/status/:id', auditController.getAuditStatus);
+router.post('/audit', auditController.startAudit);
+router.get('/audit/:id', auditController.getAuditStatus);
 
 module.exports = router;
