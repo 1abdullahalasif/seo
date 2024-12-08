@@ -1,26 +1,19 @@
 const express = require('express');
-const dotenv = require('dotenv');
-const connectDB = require('./config/database');
-
-// Load environment variables from `.env` file
-dotenv.config();
-
-// Connect to MongoDB
-connectDB();
+const connectDatabase = require('./config/database');
+const apiRoutes = require('./routes/api');
 
 const app = express();
 
-// Middleware for parsing JSON
 app.use(express.json());
+app.use('/api', apiRoutes);
 
-// Import your routes here
-const auditRoutes = require('./routes/auditRoutes');
+const PORT = process.env.PORT || 3001;
 
-// Use your routes
-app.use('/api/audit', auditRoutes);
+const startServer = async () => {
+    await connectDatabase(); // Connect to MongoDB
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+};
 
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+startServer();
