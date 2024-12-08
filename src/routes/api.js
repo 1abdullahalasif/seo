@@ -1,26 +1,11 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
-const auditController = require('../controllers/auditController');
-
 const router = express.Router();
+const auditController = require('../controllers/auditController'); // Import the controller
 
-// **Rate limiter middleware**
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
-  keyGenerator: (req) => req.ip, // Use req.ip to avoid trust proxy issues
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      message: 'Too many requests, please try again later.',
-    });
-  },
-});
+// Route to start an audit
+router.post('/audit/start', auditController.startAudit);
 
-// Apply rate limiter to all routes
-router.use(limiter);
-
-// Define routes
-router.post('/audit', auditController.createAudit);
+// Route to get audit status by ID
+router.get('/audit/status/:id', auditController.getAuditStatus);
 
 module.exports = router;

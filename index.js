@@ -1,29 +1,31 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-require('dotenv').config();
+const apiRoutes = require('./src/routes/api'); // Import the API routes
+
+require('dotenv').config(); // Load environment variables
 
 const app = express();
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
 
-// **Set trust proxy for Render**
-app.set('trust proxy', 1);
+// Middleware
+app.use(bodyParser.json());
 
-// Import routes
-const apiRoutes = require('./src/routes/api');
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-// Use routes
-app.use('/api', apiRoutes);
+// Routes
+app.use('/api', apiRoutes); // Use the API routes under the /api path
 
-// MongoDB Connection
-const DB_URL = process.env.DB_URL || 'mongodb://localhost:27017/yourDatabase';
-mongoose
-  .connect(DB_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+// Error handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send({ error: 'Something went wrong!' });
+});
 
 // Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
