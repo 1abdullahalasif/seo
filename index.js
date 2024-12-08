@@ -1,31 +1,26 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-const apiRoutes = require('./src/routes/api'); // Import the API routes
+const dotenv = require('dotenv');
+const connectDB = require('./config/database');
 
-require('dotenv').config(); // Load environment variables
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware
-app.use(bodyParser.json());
+// Load environment variables from `.env` file
+dotenv.config();
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+connectDB();
 
-// Routes
-app.use('/api', apiRoutes); // Use the API routes under the /api path
+const app = express();
 
-// Error handling
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send({ error: 'Something went wrong!' });
-});
+// Middleware for parsing JSON
+app.use(express.json());
 
-// Start the server
+// Import your routes here
+const auditRoutes = require('./routes/auditRoutes');
+
+// Use your routes
+app.use('/api/audit', auditRoutes);
+
+const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
