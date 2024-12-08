@@ -1,5 +1,5 @@
 // src/services/seoAnalyzer.js
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const axios = require('axios');
 
 class SEOAnalyzer {
@@ -8,20 +8,22 @@ class SEOAnalyzer {
     }
 
     async initialize() {
-        this.browser = await puppeteer.launch({
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-gpu'
-            ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
-        });
+        try {
+            this.browser = await puppeteer.launch({
+                headless: true,
+                executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer'
+                ]
+            });
+        } catch (error) {
+            console.error('Browser launch error:', error);
+            throw error;
+        }
     }
 
     async analyzePage(url) {
@@ -44,14 +46,13 @@ class SEOAnalyzer {
                 images: await this.analyzeImages(page),
                 links: await this.analyzeLinks(page, url),
                 social: await this.analyzeSocialMedia(page),
-                technical: await this.analyzeTechnical(page, url),
-                performance: await this.analyzePerformance(page),
                 tracking: await this.analyzeTrackingCodes(page),
+                performance: await this.analyzePerformance(page),
+                technical: await this.analyzeTechnical(page, url),
                 accessibility: await this.analyzeAccessibility(page),
                 schema: await this.analyzeSchema(page),
                 robotsTxt: await this.analyzeRobotsTxt(url),
-                sitemap: await this.analyzeSitemap(url),
-                mobileCompatibility: await this.analyzeMobileCompatibility(url)
+                sitemap: await this.analyzeSitemap(url)
             };
 
             return results;
@@ -65,55 +66,37 @@ class SEOAnalyzer {
 
     async analyzeMeta(page) {
         return await page.evaluate(() => {
-            const meta = {};
-            
-            // Title analysis
-            const title = document.querySelector('title');
-            meta.title = {
-                content: title ? title.innerText : null,
-                length: title ? title.innerText.length : 0,
-                status: title ? 
-                    (title.innerText.length < 60 ? 'good' : 'too_long') 
-                    : 'missing'
+            const meta = {
+                title: {
+                    content: document.querySelector('title')?.innerText || null,
+                    length: document.querySelector('title')?.innerText.length || 0
+                },
+                description: {
+                    content: document.querySelector('meta[name="description"]')?.getAttribute('content') || null,
+                    length: document.querySelector('meta[name="description"]')?.getAttribute('content')?.length || 0
+                },
+                keywords: document.querySelector('meta[name="keywords"]')?.getAttribute('content')?.split(',').map(k => k.trim()) || [],
+                favicon: document.querySelector('link[rel="icon"], link[rel="shortcut icon"]')?.href || null,
+                canonical: document.querySelector('link[rel="canonical"]')?.href || null,
+                viewport: document.querySelector('meta[name="viewport"]')?.getAttribute('content') || null,
+                charset: document.characterSet || null,
+                language: document.documentElement.lang || null
             };
 
-            // Meta description analysis
-            const description = document.querySelector('meta[name="description"]');
-            meta.description = {
-                content: description ? description.getAttribute('content') : null,
-                length: description ? description.getAttribute('content').length : 0,
-                status: description ? 
-                    (description.getAttribute('content').length < 160 ? 'good' : 'too_long') 
-                    : 'missing'
+            // Open Graph
+            meta.openGraph = {
+                title: document.querySelector('meta[property="og:title"]')?.getAttribute('content'),
+                description: document.querySelector('meta[property="og:description"]')?.getAttribute('content'),
+                image: document.querySelector('meta[property="og:image"]')?.getAttribute('content'),
+                url: document.querySelector('meta[property="og:url"]')?.getAttribute('content')
             };
 
-            // Meta keywords analysis
-            const keywords = document.querySelector('meta[name="keywords"]');
-            meta.keywords = keywords ? 
-                keywords.getAttribute('content').split(',').map(k => k.trim()) 
-                : [];
-
-            // Canonical URL
-            const canonical = document.querySelector('link[rel="canonical"]');
-            meta.canonical = {
-                exists: !!canonical,
-                href: canonical ? canonical.href : null
-            };
-
-            // Check for duplicates
-            const allMeta = document.getElementsByTagName('meta');
-            const metaTitles = document.getElementsByTagName('title');
-            
-            meta.duplicates = {
-                title: metaTitles.length > 1,
-                description: Array.from(allMeta).filter(m => m.name === 'description').length > 1
-            };
-
-            // Favicon
-            const favicon = document.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
-            meta.favicon = {
-                exists: !!favicon,
-                href: favicon ? favicon.href : null
+            // Twitter Card
+            meta.twitter = {
+                card: document.querySelector('meta[name="twitter:card"]')?.getAttribute('content'),
+                title: document.querySelector('meta[name="twitter:title"]')?.getAttribute('content'),
+                description: document.querySelector('meta[name="twitter:description"]')?.getAttribute('content'),
+                image: document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
             };
 
             return meta;
@@ -127,8 +110,9 @@ class SEOAnalyzer {
                 const elements = document.getElementsByTagName(tag);
                 headings[tag] = Array.from(elements).map(el => ({
                     content: el.innerText,
-                    count: 1,
-                    length: el.innerText.length
+                    length: el.innerText.length,
+                    hasKeywords: true, // This should be implemented based on target keywords
+                    isVisible: el.getBoundingClientRect().height > 0
                 }));
             });
             return headings;
@@ -147,58 +131,40 @@ class SEOAnalyzer {
                     height: img.naturalHeight || img.height
                 },
                 loading: img.loading || 'eager',
-                size: img.dataset.filesize
+                isResponsive: img.srcset ? true : false,
+                fileSize: img.dataset.filesize || null
             }));
         });
     }
 
     async analyzeTrackingCodes(page) {
         return await page.evaluate(() => {
-            const tracking = {
+            const pageSource = document.documentElement.innerHTML;
+            
+            return {
                 googleAnalytics: {
-                    present: false,
-                    type: null,
-                    id: null
+                    present: pageSource.includes('google-analytics.com/analytics.js') || 
+                            pageSource.includes('gtag') || 
+                            !!pageSource.match(/UA-\d+-\d+/) ||
+                            !!pageSource.match(/G-[A-Z0-9]+/),
+                    type: pageSource.includes('gtag') ? 'GA4' : 'Universal Analytics',
+                    id: (pageSource.match(/UA-\d+-\d+/) || pageSource.match(/G-[A-Z0-9]+/) || [null])[0]
                 },
                 googleTagManager: {
-                    present: false,
-                    id: null
+                    present: pageSource.includes('googletagmanager.com/gtm.js'),
+                    id: (pageSource.match(/GTM-[A-Z0-9]+/) || [null])[0]
                 },
                 facebookPixel: {
-                    present: false,
-                    id: null
+                    present: pageSource.includes('connect.facebook.net') || pageSource.includes('fbq('),
+                    id: (pageSource.match(/fbq\('init',\s*'(\d+)'\)/) || [null, null])[1]
                 }
             };
-
-            // Check for GA4
-            const pageSource = document.documentElement.innerHTML;
-            const ga4Match = pageSource.match(/G-[A-Z0-9]+/);
-            if (ga4Match) {
-                tracking.googleAnalytics.present = true;
-                tracking.googleAnalytics.type = 'GA4';
-                tracking.googleAnalytics.id = ga4Match[0];
-            }
-
-            // Check for GTM
-            const gtmMatch = pageSource.match(/GTM-[A-Z0-9]+/);
-            if (gtmMatch) {
-                tracking.googleTagManager.present = true;
-                tracking.googleTagManager.id = gtmMatch[0];
-            }
-
-            // Check for Facebook Pixel
-            const fbPixelMatch = pageSource.match(/fbq\('init',\s*'(\d+)'\)/);
-            if (fbPixelMatch) {
-                tracking.facebookPixel.present = true;
-                tracking.facebookPixel.id = fbPixelMatch[1];
-            }
-
-            return tracking;
         });
     }
 
     async analyzeSocialMedia(page) {
         return await page.evaluate(() => {
+            const links = Array.from(document.getElementsByTagName('a'));
             const socialProfiles = {
                 facebook: null,
                 linkedin: null,
@@ -206,19 +172,12 @@ class SEOAnalyzer {
                 tiktok: null
             };
 
-            // Find social media links
-            const links = Array.from(document.getElementsByTagName('a'));
             links.forEach(link => {
                 const href = link.href.toLowerCase();
-                if (href.includes('facebook.com/')) {
-                    socialProfiles.facebook = href;
-                } else if (href.includes('linkedin.com/')) {
-                    socialProfiles.linkedin = href;
-                } else if (href.includes('instagram.com/')) {
-                    socialProfiles.instagram = href;
-                } else if (href.includes('tiktok.com/')) {
-                    socialProfiles.tiktok = href;
-                }
+                if (href.includes('facebook.com/')) socialProfiles.facebook = href;
+                if (href.includes('linkedin.com/')) socialProfiles.linkedin = href;
+                if (href.includes('instagram.com/')) socialProfiles.instagram = href;
+                if (href.includes('tiktok.com/')) socialProfiles.tiktok = href;
             });
 
             return socialProfiles;
@@ -232,22 +191,30 @@ class SEOAnalyzer {
                 text: link.textContent.trim(),
                 isInternal: link.href.includes(window.location.hostname),
                 hasTitle: !!link.title,
-                target: link.target,
-                rel: link.rel
+                nofollow: link.rel.includes('nofollow'),
+                target: link.target
             }));
         });
 
-        // Check for broken links
         const brokenLinks = [];
         for (const link of links) {
             if (link.href && !link.href.startsWith('mailto:') && !link.href.startsWith('tel:')) {
                 try {
-                    const response = await axios.head(link.href, { timeout: 5000 });
+                    const response = await axios.head(link.href, { 
+                        timeout: 5000,
+                        validateStatus: false 
+                    });
                     if (response.status >= 400) {
-                        brokenLinks.push(link);
+                        brokenLinks.push({
+                            ...link,
+                            statusCode: response.status
+                        });
                     }
                 } catch (error) {
-                    brokenLinks.push(link);
+                    brokenLinks.push({
+                        ...link,
+                        error: error.message
+                    });
                 }
             }
         }
@@ -257,7 +224,7 @@ class SEOAnalyzer {
             internal: links.filter(l => l.isInternal).length,
             external: links.filter(l => !l.isInternal).length,
             broken: brokenLinks,
-            nofollow: links.filter(l => l.rel?.includes('nofollow')).length
+            nofollow: links.filter(l => l.nofollow).length
         };
     }
 
@@ -279,21 +246,39 @@ class SEOAnalyzer {
         });
     }
 
+    async analyzeTechnical(page, url) {
+        const [ssl, gzip] = await Promise.all([
+            this.checkSSL(url),
+            this.checkGzip(url)
+        ]);
+
+        const technical = await page.evaluate(() => ({
+            doctype: document.doctype ? document.doctype.name : null,
+            charset: document.characterSet,
+            viewport: document.querySelector('meta[name="viewport"]')?.content,
+            language: document.documentElement.lang,
+            inlineStyles: document.getElementsByTagName('style').length,
+            inlineScripts: Array.from(document.getElementsByTagName('script'))
+                .filter(s => !s.src).length
+        }));
+
+        return {
+            ...technical,
+            ssl,
+            gzip
+        };
+    }
+
     async analyzeRobotsTxt(url) {
         try {
             const robotsUrl = new URL('/robots.txt', url).href;
             const response = await axios.get(robotsUrl);
-            
-            const content = response.data;
-            const sitemapUrls = content.match(/Sitemap: (.*)/g)?.map(line => 
-                line.replace('Sitemap:', '').trim()
-            ) || [];
-
             return {
                 exists: true,
-                content,
-                hasSitemap: sitemapUrls.length > 0,
-                sitemapUrls
+                content: response.data,
+                hasSitemap: response.data.toLowerCase().includes('sitemap:'),
+                sitemapUrls: (response.data.match(/Sitemap: (.*)/g) || [])
+                    .map(line => line.replace('Sitemap:', '').trim())
             };
         } catch (error) {
             return {
@@ -307,12 +292,11 @@ class SEOAnalyzer {
         try {
             const sitemapUrl = new URL('/sitemap.xml', url).href;
             const response = await axios.get(sitemapUrl);
-            
             return {
                 exists: true,
+                content: response.data,
                 urlCount: (response.data.match(/<url>/g) || []).length,
-                lastModified: new Date(),
-                format: response.data.includes('<?xml') ? 'XML' : 'Other'
+                lastmod: (response.data.match(/<lastmod>(.*?)<\/lastmod>/g) || []).length > 0
             };
         } catch (error) {
             return {
@@ -322,60 +306,23 @@ class SEOAnalyzer {
         }
     }
 
-    async analyzeMobileCompatibility(url) {
-        try {
-            const page = await this.browser.newPage();
-            await page.setViewport({
-                width: 375,
-                height: 667,
-                isMobile: true
-            });
-
-            await page.goto(url, { waitUntil: 'networkidle0' });
-            
-            const mobileMetrics = await page.evaluate(() => ({
-                viewport: document.querySelector('meta[name="viewport"]')?.content,
-                textSize: window.getComputedStyle(document.body).fontSize,
-                tapTargets: Array.from(document.querySelectorAll('a, button, input, select, textarea'))
-                    .map(el => {
-                        const rect = el.getBoundingClientRect();
-                        return {
-                            width: rect.width,
-                            height: rect.height
-                        };
-                    })
-            }));
-
-            await page.close();
-
-            return {
-                hasViewport: !!mobileMetrics.viewport,
-                tapTargetsValid: mobileMetrics.tapTargets.every(t => t.width >= 48 && t.height >= 48),
-                textSizeValid: parseInt(mobileMetrics.textSize) >= 16
-            };
-        } catch (error) {
-            return {
-                error: error.message
-            };
-        }
-    }
-
     async analyzePerformance(page) {
         const metrics = await page.metrics();
-        const performanceEntries = await page.evaluate(() => 
-            JSON.stringify(performance.getEntriesByType('navigation'))
-        );
-        
-        const navigationTiming = JSON.parse(performanceEntries)[0];
+        const performanceTiming = await page.evaluate(() => {
+            const timing = window.performance.timing;
+            return {
+                loadTime: timing.loadEventEnd - timing.navigationStart,
+                domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart,
+                firstPaint: performance.getEntriesByType('paint')[0]?.startTime || null
+            };
+        });
 
         return {
-            loadTime: navigationTiming.loadEventEnd - navigationTiming.startTime,
-            domContentLoaded: navigationTiming.domContentLoadedEventEnd - navigationTiming.startTime,
-            firstPaint: metrics.FirstPaint,
-            resourceCount: await page.evaluate(() => performance.getEntriesByType('resource').length),
-            resourceSize: await page.evaluate(() => 
-                performance.getEntriesByType('resource')
-                    .reduce((total, resource) => total + resource.transferSize, 0)
+            ...performanceTiming,
+            jsHeapSize: metrics.JSHeapUsedSize,
+            nodes: metrics.Nodes,
+            resources: await page.evaluate(() => 
+                performance.getEntriesByType('resource').length
             )
         };
     }
@@ -390,6 +337,7 @@ class SEOAnalyzer {
                     issues.push({
                         type: 'image_alt',
                         element: 'img',
+                        src: img.src,
                         issue: 'Missing alt text'
                     });
                 }
@@ -406,22 +354,57 @@ class SEOAnalyzer {
                 }
             });
 
-            // Check ARIA labels
-            document.querySelectorAll('[role]').forEach(el => {
-                if (!el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')) {
-                    issues.push({
-                        type: 'aria_label',
-                        element: el.tagName.toLowerCase(),
-                        issue: 'Missing ARIA label'
-                    });
-                }
-            });
-
             return {
                 issues,
-                totalIssues: issues.length
+                totalIssues: issues.length,
+                passedChecks: [
+                    'language',
+                    'doctype',
+                    'viewport'
+                ].filter(check => {
+                    switch(check) {
+                        case 'language':
+                            return !!document.documentElement.lang;
+                        case 'doctype':
+                            return !!document.doctype;
+                        case 'viewport':
+                            return !!document.querySelector('meta[name="viewport"]');
+                        default:
+                            return false;
+                    }
+                })
             };
         });
+    }
+
+    async checkSSL(url) {
+        try {
+            const response = await axios.get(url);
+            return {
+                secure: url.startsWith('https'),
+                certificate: response.request.res.socket.getPeerCertificate()
+            };
+        } catch (error) {
+            return {
+                secure: url.startsWith('https'),
+                error: error.message
+            };
+        }
+    }
+
+    async checkGzip(url) {
+        try {
+            const response = await axios.get(url);
+            return {
+                enabled: response.headers['content-encoding'] === 'gzip',
+                encoding: response.headers['content-encoding']
+            };
+        } catch (error) {
+            return {
+                enabled: false,
+                error: error.message
+            };
+        }
     }
 
     async cleanup() {
