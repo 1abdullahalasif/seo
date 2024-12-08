@@ -1,70 +1,56 @@
+// src/index.js or index.js
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
-const winston = require('winston');
 
 // Load environment variables
 dotenv.config();
 
-// Initialize express app
 const app = express();
 
-// Create logger
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-    ),
-    transports: [
-        new winston.transports.File({ filename: 'error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'combined.log' })
-    ]
-});
-
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.simple()
-    }));
-}
+// Trust proxy - Add this line
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
 
-// Request logging middleware
-app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.url}`, {
-        ip: req.ip,
-        userAgent: req.get('user-agent')
-    });
-    next();
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: parseInt(process.env.API_RATE_WINDOW) || 900000, // 15 minutes
+    max: parseInt(process.env.API_RATE_LIMIT) || 100, // Limit each IP
+    standardHeaders: true,
+    legacyHeaders: false
 });
 
-// Connect to MongoDB Atlas
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
-        logger.info('Connected to MongoDB Atlas');
+        console.info('Connected to MongoDB Atlas');
     })
     .catch((error) => {
-        logger.error('MongoDB connection error:', error);
+        console.error('MongoDB connection error:', error);
         process.exit(1);
     });
-
-// Health check route
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
-});
 
 // Routes
 app.use('/api', require('./src/routes/api'));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-    logger.error('Unhandled error:', err);
+    console.error('Unhandled error:', err);
     res.status(500).json({
         success: false,
         message: 'An unexpected error occurred',
@@ -75,5 +61,5 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
+    console.info(`Server running on port ${PORT}`);
 });
