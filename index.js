@@ -35,6 +35,9 @@ app.use(cors());
 app.use(helmet());
 app.use(express.json());
 
+// **Trust Proxy Configuration** (Fixes Render's proxy-related issue)
+app.set('trust proxy', true);
+
 // Request logging middleware
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.url}`, {
@@ -45,7 +48,7 @@ app.use((req, res, next) => {
 });
 
 // Connect to MongoDB Atlas
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         logger.info('Connected to MongoDB Atlas');
     })

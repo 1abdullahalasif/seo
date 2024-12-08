@@ -16,7 +16,7 @@ class SEOAnalyzer {
                 links: await this.analyzeLinks(document, url),
                 performance: {
                     pageSize: response.headers['content-length'],
-                    loadTime: response.timings?.elapsedTime
+                    loadTime: response.timings?.elapsedTime || null
                 },
                 technical: await this.analyzeTechnical(url, response),
                 robotsTxt: await this.analyzeRobotsTxt(url),
@@ -25,7 +25,7 @@ class SEOAnalyzer {
 
             return results;
         } catch (error) {
-            console.error('Error analyzing page:', error);
+            console.error('Error analyzing page:', error.message);
             throw error;
         }
     }
@@ -76,20 +76,22 @@ class SEOAnalyzer {
             hasTitle: !!link.title
         }));
 
-        // Check for broken links
+        // Check for broken links with Promise.all for better performance
         const brokenLinks = [];
-        for (const link of linkObjects) {
-            if (link.href && !link.href.startsWith('mailto:') && !link.href.startsWith('tel:')) {
-                try {
-                    const response = await axios.head(link.href, { timeout: 5000 });
-                    if (response.status >= 400) {
+        await Promise.all(
+            linkObjects.map(async link => {
+                if (link.href && !link.href.startsWith('mailto:') && !link.href.startsWith('tel:')) {
+                    try {
+                        const response = await axios.head(link.href, { timeout: 5000 });
+                        if (response.status >= 400) {
+                            brokenLinks.push(link);
+                        }
+                    } catch (error) {
                         brokenLinks.push(link);
                     }
-                } catch (error) {
-                    brokenLinks.push(link);
                 }
-            }
-        }
+            })
+        );
 
         return {
             total: links.length,
@@ -141,6 +143,12 @@ class SEOAnalyzer {
                 error: error.message
             };
         }
+    }
+
+    // Added cleanup method to avoid the error in the controller
+    async cleanup() {
+        // If no cleanup is needed, log or handle cleanup gracefully
+        console.log('Cleanup completed (no resources to release).');
     }
 }
 

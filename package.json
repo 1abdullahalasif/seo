@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "lint": "eslint .",
+    "test": "jest"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -20,9 +22,20 @@
     "jsdom": "^22.1.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "eslint": "^8.52.0",
+    "jest": "^29.7.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1abdullahalasif/seo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/1abdullahalasif/seo/issues"
+  },
+  "homepage": "https://github.com/1abdullahalasif/seo#readme"
 }
