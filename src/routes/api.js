@@ -1,40 +1,32 @@
-// src/routes/api.js
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const auditController = require('../controllers/auditController');
-const { validateAuditRequest, validateURLParams } = require('../utils/validation');
 
-// Rate limiting
+// Rate limiting for audit endpoint
 const auditLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10 // limit each IP to 10 requests per hour
+    windowMs: process.env.API_RATE_WINDOW || 900000, // 15 minutes
+    max: process.env.API_RATE_LIMIT || 100, // Limit each IP
+    standardHeaders: true,
+    legacyHeaders: false
 });
 
-// Health check route
-router.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+// Debug route to check if API is working
+router.get('/test', (req, res) => {
+    res.json({ message: 'API is working' });
 });
 
 // Audit routes
-router.post('/audit', 
-    auditLimiter,
-    validateAuditRequest,
-    auditController.startAudit
-);
+router.post('/audit', auditLimiter, auditController.startAudit);
+router.get('/audit/:id', auditController.getAuditStatus);
 
-router.get('/audit/:id',
-    validateURLParams,
-    auditController.getAuditStatus
-);
-
-// Error handling middleware
+// Error handler
 router.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('API Error:', err);
     res.status(500).json({
         success: false,
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: 'An error occurred',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
 });
 
