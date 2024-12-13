@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const auditController = require('../controllers/auditController');
+const validation = require('../utils/validation');
 
 // Rate limiting for audit endpoint
 const auditLimiter = rateLimit({
@@ -17,8 +18,12 @@ router.get('/test', (req, res) => {
 });
 
 // Audit routes
-router.post('/audit', auditLimiter, auditController.startAudit);
-router.get('/audit/:id', auditController.getAuditStatus);
+router.post('/audit', auditLimiter, validation.validateAuditRequest, (req, res, next) => {
+    auditController.startAudit(req, res).catch(next);
+});
+router.get('/audit/:id', validation.validateURLParams, (req, res, next) => {
+    auditController.getAuditStatus(req, res).catch(next);
+});
 
 // Error handler
 router.use((err, req, res, next) => {

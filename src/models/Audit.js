@@ -42,37 +42,75 @@ const auditSchema = new mongoose.Schema({
         meta: {
             title: {
                 content: String,
-                length: Number,
-                status: String
+                length: Number
             },
             description: {
                 content: String,
-                length: Number,
-                status: String
-            }
+                length: Number
+            },
+            keywords: [String],
+            favicon: String,
+            canonical: String
         },
-        headings: mongoose.Schema.Types.Mixed,
+        headings: {
+            h1: [{
+                content: String,
+                length: Number
+            }],
+            h2: [{
+                content: String,
+                length: Number
+            }],
+            h3: [{
+                content: String,
+                length: Number
+            }],
+            h4: [{
+                content: String,
+                length: Number
+            }],
+            h5: [{
+                content: String,
+                length: Number
+            }],
+            h6: [{
+                content: String,
+                length: Number
+            }]
+        },
         images: [{
             src: String,
             alt: String,
-            hasAlt: Boolean,
-            dimensions: {
-                width: Number,
-                height: Number
-            }
+            hasAlt: Boolean
         }],
-        performance: {
-            loadTime: Number,
-            domContentLoaded: Number,
-            firstPaint: Number
-        },
-        seo: {
-            score: Number,
-            issues: [{
-                type: String,
-                severity: String,
-                description: String
+        links: {
+            total: Number,
+            internal: Number,
+            external: Number,
+            broken: [{
+                href: String,
+                text: String
             }]
+        },
+        performance: {
+            pageSize: Number,
+            loadTime: Number
+        },
+        technical: {
+            ssl: Boolean,
+            redirects: Number,
+            responseTime: Number
+        },
+        robotsTxt: {
+            exists: Boolean,
+            content: String,
+            hasSitemap: Boolean,
+            error: String
+        },
+        sitemap: {
+            exists: Boolean,
+            urlCount: Number,
+            error: String
         }
     },
     summary: {
@@ -80,7 +118,7 @@ const auditSchema = new mongoose.Schema({
         criticalIssues: Number,
         warnings: Number,
         passed: Number,
-        recommendations: [recommendationSchema]  // Using the defined sub-schema
+        recommendations: [recommendationSchema]
     },
     createdAt: {
         type: Date,

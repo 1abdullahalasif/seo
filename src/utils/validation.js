@@ -1,5 +1,6 @@
 // src/utils/validation.js
 const { body, param, validationResult } = require('express-validator');
+const { isValidURL, isValidEmail, isValidDomain } = require('./helpers');
 
 // Validation middleware for audit request
 exports.validateAuditRequest = [
@@ -8,7 +9,7 @@ exports.validateAuditRequest = [
         .trim()
         .notEmpty()
         .withMessage('Website URL is required')
-        .isURL()
+        .custom(isValidURL)
         .withMessage('Invalid URL format'),
     
     // Email validation
@@ -16,7 +17,7 @@ exports.validateAuditRequest = [
         .trim()
         .notEmpty()
         .withMessage('Email is required')
-        .isEmail()
+        .custom(isValidEmail)
         .withMessage('Invalid email format'),
     
     // Name validation
@@ -32,7 +33,7 @@ exports.validateAuditRequest = [
         .trim()
         .notEmpty()
         .withMessage('Company domain is required')
-        .matches(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/)
+        .custom(isValidDomain)
         .withMessage('Invalid domain format'),
 
     // Validation result middleware
@@ -71,25 +72,3 @@ exports.validateURLParams = [
         next();
     }
 ];
-
-// Helper function to validate URLs
-exports.isValidURL = (url) => {
-    try {
-        new URL(url);
-        return true;
-    } catch (error) {
-        return false;
-    }
-};
-
-// Helper function to validate email format
-exports.isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-};
-
-// Helper function to validate domain format
-exports.isValidDomain = (domain) => {
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    return domainRegex.test(domain);
-};

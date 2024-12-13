@@ -84,7 +84,17 @@ async function processAudit(auditId) {
         const audit = await Audit.findById(auditId);
         
         // Perform SEO analysis
-        const results = await seoAnalyzer.analyzePage(audit.websiteUrl);
+        let results;
+        try {
+            results = await seoAnalyzer.analyzePage(audit.websiteUrl);
+        } catch (error) {
+            console.error('Error analyzing page:', error);
+            await Audit.findByIdAndUpdate(auditId, {
+                status: 'failed',
+                error: error.message
+            });
+            return;
+        }
 
         // Generate recommendations based on results
         const recommendations = generateRecommendations(results);
@@ -119,7 +129,7 @@ function generateRecommendations(results) {
     const recommendations = [];
 
     // Meta recommendations
-    if (!results.meta?.title?.content) {
+    if (!results.meta.title.content) {
         recommendations.push({
             type: 'meta_title',
             severity: 'critical',
@@ -129,7 +139,7 @@ function generateRecommendations(results) {
         });
     }
 
-    if (!results.meta?.description?.content) {
+    if (!results.meta.description.content) {
         recommendations.push({
             type: 'meta_description',
             severity: 'critical',
@@ -158,10 +168,10 @@ function calculateOverallScore(results) {
     let score = 100;
 
     // Meta tags scoring
-    if (!results.meta?.title?.content) score -= 10;
-    if (!results.meta?.description?.content) score -= 10;
-    if (results.meta?.title?.length > 60) score -= 5;
-    if (results.meta?.description?.length > 160) score -= 5;
+    if (!results.meta.title.content) score -= 10;
+    if (!results.meta.description.content) score -= 10;
+    if (results.meta.title.length > 60) score -= 5;
+    if (results.meta.description.length > 160) score -= 5;
 
     // Images scoring
     const imagesWithoutAlt = results.images?.filter(img => !img.hasAlt) || [];

@@ -16,9 +16,13 @@ class SEOAnalyzer {
                 links: await this.analyzeLinks(document, url),
                 performance: {
                     pageSize: response.headers['content-length'],
-                    loadTime: response.timings?.elapsedTime
+                    loadTime: response.timings?.phases.total
                 },
-                technical: await this.analyzeTechnical(url, response),
+                technical: {
+                    ssl: url.startsWith('https'),
+                    redirects: response.request.redirects?.length || 0,
+                    responseTime: response.timings?.phases.firstByte
+                },
                 robotsTxt: await this.analyzeRobotsTxt(url),
                 sitemap: await this.analyzeSitemap(url)
             };
@@ -96,17 +100,6 @@ class SEOAnalyzer {
             internal: linkObjects.filter(l => l.isInternal).length,
             external: linkObjects.filter(l => !l.isInternal).length,
             broken: brokenLinks
-        };
-    }
-
-    async analyzeTechnical(url, response) {
-        return {
-            ssl: url.startsWith('https'),
-            headers: {
-                server: response.headers['server'],
-                contentType: response.headers['content-type'],
-                cacheControl: response.headers['cache-control']
-            }
         };
     }
 
