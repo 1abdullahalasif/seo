@@ -12,9 +12,20 @@ const app = express();
 // Trust proxy
 app.set('trust proxy', 1);
 
-// Middleware
-app.use(cors());
-app.use(helmet());
+// CORS configuration
+app.use(cors({
+    origin: '*', // In production, replace with your frontend domain
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+    credentials: true
+}));
+
+// Security middleware
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+}));
+
 app.use(express.json());
 
 // MongoDB connection
@@ -27,18 +38,18 @@ mongoose.connect(process.env.MONGODB_URI)
         process.exit(1);
     });
 
-// Routes
-app.use('/api', require('./src/routes/api'));
-
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ message: 'SEO Audit API Server' });
+    res.json({ message: 'SEO Audit API Server', status: 'running' });
 });
+
+// Routes
+app.use('/api', require('./src/routes/api'));
 
 // Error handling
 app.use((err, req, res, next) => {
