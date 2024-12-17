@@ -28,11 +28,6 @@ const auditSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  companyDomain: {
-    type: String,
-    required: true,
-    trim: true
-  },
   status: {
     type: String,
     enum: ['pending', 'processing', 'completed', 'failed'],

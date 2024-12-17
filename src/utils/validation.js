@@ -28,13 +28,6 @@ exports.validateAuditRequest = [
         .isLength({ min: 2 })
         .withMessage('Name must be at least 2 characters long'),
     
-    // Company domain validation
-    body('companyDomain')
-        .trim()
-        .notEmpty()
-        .withMessage('Company domain is required')
-        .custom(isValidDomain)
-        .withMessage('Invalid domain format'),
 
     // Validation result middleware
     (req, res, next) => {

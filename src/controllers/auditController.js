@@ -4,12 +4,12 @@ const seoAnalyzer = require('../services/seoAnalyzer');
 
 exports.startAudit = async (req, res) => {
   try {
-    const { websiteUrl, email, name, companyDomain } = req.body;
+    const { websiteUrl, email, name } = req.body;
 
-    console.log('Received audit request:', { websiteUrl, email, name, companyDomain });
+    console.log('Received audit request:', { websiteUrl, email, name });
 
     // Validate input data
-    if (!websiteUrl || !email || !name || !companyDomain) {
+    if (!websiteUrl || !email || !name) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields'
@@ -21,7 +21,6 @@ exports.startAudit = async (req, res) => {
       websiteUrl,
       email,
       name,
-      companyDomain,
       status: 'pending'
     });
 

@@ -12,15 +12,16 @@ const app = express();
 // Trust proxy
 app.set('trust proxy', 1);
 
-// CORS configuration
+// CORS configuration with specific methods and headers
 app.use(cors({
-    origin: '*', // In production, replace with your frontend domain
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
-    credentials: true
+    credentials: true,
+    maxAge: 86400 // 24 hours
 }));
 
-// Security middleware
+// Modified Helmet configuration to allow necessary access
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: false,
@@ -28,7 +29,7 @@ app.use(helmet({
 
 app.use(express.json());
 
-// MongoDB connection
+// MongoDB connection with proper error handling
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.info('Connected to MongoDB Atlas');
@@ -40,20 +41,45 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        server: 'SEO Audit Backend',
+        version: process.env.npm_package_version || '1.0.0'
+    });
 });
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ message: 'SEO Audit API Server', status: 'running' });
+    res.json({
+        message: 'SEO Audit API Server',
+        status: 'running',
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Routes
-app.use('/api', require('./src/routes/api'));
+// API routes with error monitoring
+app.use('/api', (req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+    next();
+}, require('./src/routes/api'));
 
-// Error handling
+// Global error handling middleware
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
+    
+    // Log detailed error info for debugging
+    console.error({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        url: req.originalUrl,
+        body: req.body,
+        error: {
+            message: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }
+    });
+
     res.status(500).json({
         success: false,
         message: 'An unexpected error occurred',
@@ -61,8 +87,25 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server
+// Start server with proper error handling
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.info(`Server running on port ${PORT}`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+    console.error('Server error:', error);
+    process.exit(1);
+});
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    process.exit(1);
 });
