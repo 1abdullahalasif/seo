@@ -62,9 +62,13 @@ const connectDB = async (retries = 5) => {
     }
 };
 
+// Initialize database connection
 connectDB();
 
-// Enhanced health check endpoint
+// Mount routes without the /api prefix for audit endpoints
+app.use('/audit', require('./src/routes/api'));
+
+// Health check endpoint
 app.get('/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1;
     
@@ -93,15 +97,6 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
-// API routes with enhanced logging
-app.use('/api', (req, res, next) => {
-    logger.info(`${req.method} ${req.originalUrl}`, {
-        ip: req.ip,
-        userAgent: req.get('user-agent')
-    });
-    next();
-}, require('./src/routes/api'));
 
 // Enhanced error handling middleware
 app.use((err, req, res, next) => {
