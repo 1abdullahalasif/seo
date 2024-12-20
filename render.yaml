@@ -7,11 +7,26 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18.0.0
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
     buildFilter:
       paths:
         - package.json
         - src/**
     plan: free
-    initialDeployHooks:
-      - npm install puppeteer
-      - node node_modules/puppeteer/install.js
+    autoDeploy: true
+    healthCheckPath: /health
+    domains:
+      - seo-audit-backend.onrender.com
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /*
+        name: Access-Control-Allow-Methods
+        value: "GET, POST, OPTIONS"
+      - path: /*
+        name: Access-Control-Allow-Headers
+        value: "Content-Type, Accept, Authorization"
