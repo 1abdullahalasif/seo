@@ -11,6 +11,12 @@ services:
         value: production
       - key: MONGODB_URI
         sync: false
+      - key: GOOGLE_PAGESPEED_API_KEY
+        sync: false  # Add this to your environment variables in Render dashboard
+      - key: GOOGLE_SEARCH_CONSOLE_API_KEY
+        sync: false
+      - key: GOOGLE_ANALYTICS_API_KEY
+        sync: false
     buildFilter:
       paths:
         - package.json
@@ -29,4 +35,4 @@ services:
         value: "GET, POST, OPTIONS"
       - path: /*
         name: Access-Control-Allow-Headers
-        value: "Content-Type, Accept, Authorization"
+        value: "Content-Type, Accept, Authorization, Origin, X-Requested-With"
