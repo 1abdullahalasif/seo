@@ -65,7 +65,7 @@ const connectDB = async (retries = 5) => {
 // Initialize database connection
 connectDB();
 
-// Mount routes without the /api prefix for audit endpoints
+// Mount API routes
 app.use('/audit', require('./src/routes/api'));
 
 // Health check endpoint
@@ -94,7 +94,11 @@ app.get('/', (req, res) => {
     res.json({
         message: 'SEO Audit API Server',
         status: 'running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        endpoints: {
+            health: '/health',
+            audit: '/audit'
+        }
     });
 });
 
@@ -168,3 +172,5 @@ process.on('uncaughtException', (error) => {
         process.exit(1);
     }, 1000);
 });
+
+module.exports = app;

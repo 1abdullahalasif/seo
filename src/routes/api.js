@@ -20,42 +20,60 @@ const auditLimiter = rateLimit({
     }
 });
 
-// Debug route to check if API is working
-router.get('/test', (req, res) => {
-    res.json({ message: 'API is working' });
+// Base route to check if API is working
+router.get('/', (req, res) => {
+    res.json({ 
+        success: true,
+        message: 'SEO Audit API is running',
+        endpoints: {
+            createAudit: 'POST /audit',
+            getStatus: 'GET /audit/:id',
+            getTechnical: 'GET /audit/:id/technical',
+            getOnPage: 'GET /audit/:id/onpage',
+            getOffPage: 'GET /audit/:id/offpage',
+            getAnalytics: 'GET /audit/:id/analytics',
+            getRecommendations: 'GET /audit/:id/recommendations'
+        }
+    });
 });
 
-// Main audit routes - Note: These should be at the root level, not under /api
+// Start new audit
 router.post('/', auditLimiter, validation.validateAuditRequest, (req, res, next) => {
     logger.info('Received audit request:', { url: req.body.websiteUrl });
     auditController.startAudit(req, res).catch(next);
 });
 
+// Get audit status
 router.get('/:id', validation.validateURLParams, (req, res, next) => {
     logger.info('Received status request:', { id: req.params.id });
     auditController.getAuditStatus(req, res).catch(next);
 });
 
+// Get technical SEO results
 router.get('/:id/technical', validation.validateURLParams, (req, res, next) => {
     logger.info('Received technical SEO request:', { id: req.params.id });
     auditController.getTechnicalSEO(req, res).catch(next);
 });
 
+// Get on-page SEO results
 router.get('/:id/onpage', validation.validateURLParams, (req, res, next) => {
     logger.info('Received on-page SEO request:', { id: req.params.id });
     auditController.getOnPageSEO(req, res).catch(next);
 });
 
+// Get off-page SEO results
 router.get('/:id/offpage', validation.validateURLParams, (req, res, next) => {
     logger.info('Received off-page SEO request:', { id: req.params.id });
     auditController.getOffPageSEO(req, res).catch(next);
 });
 
+// Get analytics results
 router.get('/:id/analytics', validation.validateURLParams, (req, res, next) => {
     logger.info('Received analytics request:', { id: req.params.id });
     auditController.getAnalytics(req, res).catch(next);
 });
 
+// Get recommendations
 router.get('/:id/recommendations', validation.validateURLParams, (req, res, next) => {
     logger.info('Received recommendations request:', { id: req.params.id });
     auditController.getRecommendations(req, res).catch(next);
