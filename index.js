@@ -12,7 +12,7 @@ const app = express();
 
 // Enhanced CORS configuration
 const corsOptions = {
-    origin: '*', // In production, replace with your specific frontend domain
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Origin', 'X-Requested-With'],
     credentials: true,
@@ -106,11 +106,10 @@ app.use('/api', (req, res, next) => {
 // Enhanced error handling middleware
 app.use((err, req, res, next) => {
     logger.error('Unhandled error:', {
-        error: err,
+        error: err.message,
         stack: err.stack,
         path: req.path,
-        method: req.method,
-        body: req.body
+        method: req.method
     });
 
     // Handle specific error types
@@ -131,8 +130,7 @@ app.use((err, req, res, next) => {
 
     res.status(err.status || 500).json({
         success: false,
-        message: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
-        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        message: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred'
     });
 });
 
@@ -170,7 +168,8 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception:', error);
-    server.close(() => {
+    // Give the server a grace period to finish existing requests
+    setTimeout(() => {
         process.exit(1);
-    });
+    }, 1000);
 });
